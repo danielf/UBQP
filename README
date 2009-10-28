@@ -1,0 +1,16 @@
+This project is to make solve the UBQP (Unconstrained Binary Quadratic Programming) by fixing variables.
+
+This is done by noting that in binary programming, x = x^2, so, for any diagonal matrix D:
+
+1/2*x^T*Q*x - b^T*x = 1/2*x^T*Q'*x - b'^T*x, where Q' = (Q + 2D) and b = (b + D*1).
+
+So, we may choose any D, and the nonlinear relaxation will give a valid upper-bound for the optimum binary value.
+
+Further, we can fix an variable by optimizing the following problem:
+
+min/max: x_j
+s.t.:    1/2*x^T*Q'*x - b'^T*x <= K
+
+Where K is a valid upper bound. If the minimum is less then 1, x_j must be 0, and if the maximum is greater then 0, x_j must be 1.
+
+Also, the optimization of the problem proposed above is done using heavy GPU processing, since it is matrix based. I hope I can get some good results from this. :D
