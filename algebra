@@ -1,0 +1,32 @@
+Given an upper bound K to the objective function optimum, and a diagonal matrix D:
+
+Let Q' = Q + 2*D and b' = b + D*1
+
+The optima (the minimum and the maximum) of the problem:
+
+opt.: c^T*x
+s.t.: 1/2*x^T*Q'*x - b'^T*x <= K
+
+is given by the Fritz John conditions. Namely:
+
+\lambda*c - Q'*x + b' = 0
+Q'*x = b' + \lambda*c
+x = Q'^-1*(b' + \lambda*c) = Q'^-1*b' + \lambda*Q'^-1*c
+
+So, the optimum of x is over the line described above. If we intersect this with the conic: 1/2*x^T*Q'*x - b'^T*x = K we have:
+
+1/2*(Q'^-1*b' + \lambda*Q'^-1*c)^T*Q'*(Q'^-1*b' + \lambda*Q'^-1*c) - b'*(Q'^-1*b' + \lambda*Q'^-1*c) = K
+
+1/2*((Q'^-1*b')^T*Q'*Q'^-1*b' + (\lambda*Q'^-1*c)^T*Q'*Q'^-1*b' + (Q'^-1*b')^T*Q'*\lambda*Q'^-1*c + (\lambda*Q'^-1*c)^T*Q'*(\lambda*Q'^-1*c)) - b'*(Q'^-1*b') + b'*(\lambda*Q'^-1*c) = K
+
+R = Q'^-1
+
+1/2*(b'^T*R^T*b' + \lambda*c^T*R^T*b' + \lambda*b'^T*R*c + \lambda^2*c^T*R^T*c) - b'*Q'^-1*b' + \lambda*b'*Q'^-1*c - K = 0
+
+\lambda^2*(1/2*c^T*R^T*c) + \lambda*(1/2*c^T*R^T*b' + 1/2*b'^T*R^T*c + b'*R*c) + 1/2*b'^T*R^T*b' + b'*R*b' - K = 0
+
+A = 1/2*c^T*R^T*c
+B = 1/2*c^T*R^T*b' + 1/2*b'^T*R^T*c + b'*R*c
+C = 1/2*b'^T*R^T*b' + b'*R*b' - K
+
+\lambda = (-B +- sqrt(B^2 - 4*A*C))/(2*A)
