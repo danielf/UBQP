@@ -26,7 +26,6 @@ R = Q'^-1
 \lambda^2*(1/2*c^T*R^T*c) + \lambda*(1/2*c^T*R^T*b' + 1/2*b'^T*R^T*c + b'*R*c) + 1/2*b'^T*R^T*b' + b'*R*b' - K = 0
 
 A = 1/2*c^T*R^T*c
-B = 1/2*c^T*R^T*b' + 1/2*b'^T*R^T*c + b'*R*c
-C = 1/2*b'^T*R^T*b' + b'*R*b' - K
+C = -.5*b'^T*R^T*b'- K
 
-\lambda = (-B +- sqrt(B^2 - 4*A*C))/(2*A)
+\lambda = (+-sqrt(-4*A*C))/(2*A)
