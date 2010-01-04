@@ -9,6 +9,7 @@ using namespace std;
 static void solve_chol(mat& U, colvec& b, colvec& x) {
   // First solve U^Ty = Ly = b
   colvec y;
+	y.copy_size(b);
   for (int i = 0; i < U.n_rows; i++) {
     double temp = b[i];
     for (int j = 0; j < i; j++)
@@ -53,44 +54,73 @@ static pair<double, double> inv_optimize(mat& U, colvec& QIb, colvec& b, colvec&
 
 
 // Number of variables set to 1
-int node::getMinNum() {
+int node::getMinNum() const {
   return min_num;
 }
 
-int node::getMaxNum() {
+int node::getMaxNum() const {
   return max_num;
 }
 
-int node::min_num(0);
-int node::max_num(1000000);
-
 double node::incumbent(0);
 
-int node::numVar() {
-  return Q.n_rows;
+int node::numVar() const {
+  return val.size() - n0 - n1;
 }
 
-node::node(mat &Q, colvec &b, vector<int>& dic, vector<int>& val, double already) : Q(Q),
-                                                                                    b(b),
-                                                                                    dic(dic),
-                                                                                    val(val),
-                                                                                    already(already) {
+node::node(const mat &Q, const colvec &b) : Q(Q), 
+                                            b(b) {
   p0.clear(); p1.clear();
+  min_num = 0;
+  max_num = 1000000;
+  already = 0;
+  dic.clear();
+  val.clear();
+	n0 = 0;
+	n1 = 0;
   for (int i = 0; i < Q.n_rows; i++) {
+    val.push_back(-1);
+    dic.push_back(i);
     p0.push_back(-INFINITY);
     p1.push_back(-INFINITY);
   }
 }
 
-bool node::possible() {
-  int n0 = 0, n1 = 0;
-  if (incumbent == INFINITY) return true;
-  for (int i = 0; i < val.size(); i++) {
-    if (val[i] == 0) n0++;
-    if (val[i] == 1) n1++;
+node node::clone() const {
+  node temp(Q, b);
+  temp.p0 = p0;
+  temp.p1 = p1;
+  temp.already = already;
+  temp.min_num = min_num;
+  temp.max_num = max_num;
+  temp.val = val;
+  temp.n0 = n0;
+  temp.n1 = n1;
+  temp.dic = dic;
+	return temp;
+}
+
+bool node::possible() const {
+  double sum = already;
+  for (int i = 0; i < val.size(); i++) if (val[i] == -1) {
+    if (p0[i] > incumbent + EPS && p1[i] > incumbent + EPS) {
+		//	printf("Tipo 1 (p0[%d] = %lf, p1[%d] = %lf, incumbent = %lf)\n", i, p0[i], i, p1[i], incumbent);
+			return false;
+		}
+    sum -= (b[i] > 0?b[i]:0);
   }
-  if (n1 > max_num) return false;
-  if (n0 + numVar() < min_num) return false;
+  if (n1 > max_num) {
+	//	printf("Tipo 2\n");
+		return false;
+	}
+  if (n1 + numVar() < min_num) {
+	//	printf("Tipo 3\n");
+		return false;
+	}
+  if (sum > incumbent) {
+	//	printf("Tipo 4 (sum = %lf, incumbent = %lf)\n", sum, incumbent);
+		return false;
+	}
   return true;
 }
 
@@ -101,19 +131,19 @@ void node::newdiag(colvec d) {
   Q2 = Q + 2*diagmat(d);
   eigval = eig_sym(Q2);
   
-  d -= .5*(eigval[0] - 1.e-3)*ones(Q.n_rows);
+  d -= .5*(eigval[0] - 1.e-3)*ones(numVar());
   Q2 = Q + 2*diagmat(d);
   b2 = b + d;
   chol(U, Q2);
   solve_chol(U, b2, QIb);
   if (incumbent < INFINITY) {
-    c = ones(Q.n_rows);
+    c = ones(numVar());
     pair<double, double> resp = optimize(U, QIb, b2, c, incumbent);
-    min_num = max(min_num, (int)ceil(resp.first));
-    max_num = min(max_num, (int)floor(resp.second));
+    min_num = max(min_num, n1 + (int)ceil(resp.first));
+    max_num = min(max_num, n1 + (int)floor(resp.second));
   }
-  c = zeros(Q.n_rows);
-  for (int i = 0; i < Q.n_rows; i++) {
+  c = zeros(numVar());
+  for (int i = 0; i < numVar(); i++) {
     c[i] = 1;
     pair<double, double> resp = inv_optimize(U, QIb, b2, c);
     p0[i] = max(p0[i], resp.first);
@@ -125,40 +155,50 @@ void node::newdiag(colvec d) {
 void node::do_fix(int var, int value) {
   if (value == 1) {
     already -= b[var];
-    b -= Q.row(var);
+    b -= Q.col(var);
     val[dic[var]] = 1;
-  } else val[dic[var]] = 0;
+    n1++;
+  } else {
+    val[dic[var]] = 0;
+    n0++;
+  }
+  b.swap_rows(var, b.n_rows-1);
+  b = b.rows(0, b.n_rows-1-(numVar() > 0));
   Q.swap_rows(var, Q.n_rows-1);
   Q.swap_cols(var, Q.n_cols-1);
-  Q = Q.submat(0, 0, Q.n_rows-2, Q.n_cols-2);
-  b.swap_rows(var, b.n_rows-1);
-  b = b.rows(0, b.n_rows-2);
+  Q = Q.submat(0, 0, Q.n_rows - 1 - (numVar() > 0), Q.n_cols-1-(numVar() > 0));
   dic[var] = dic[dic.size()-1];
   dic.pop_back();
   p0[var] = p0[p0.size()-1];
   p0.pop_back();
-  p1[var] = p1[p0.size()-1];
+  p1[var] = p1[p1.size()-1];
   p1.pop_back();
 }
 
 bool node::_fix() {
   if (incumbent == INFINITY) return false;
-  for (int i = 0; i < Q.n_rows; i++) {
+  for (int i = 0; i < numVar(); i++) {
     if (p1[i] > incumbent + EPS || p0[i] > incumbent + EPS) { // Tem que ser 0 ou 1
       if (p1[i] > incumbent + EPS) do_fix(i, 0);
-      if (p0[i] > incumbent + EPS) do_fix(i, 1);
+      else if (p0[i] > incumbent + EPS) do_fix(i, 1);
       return true;
     }
   }
   return false;
 }
 
-void node::fix() {
-  while (_fix());
+bool node::fix() {
+	bool ans = false;
+  while (_fix()) {
+		ans = true;
+		fixed++;
+	}
+	return ans;
 }
-
-pair<node, node> node::branch() {
-  pair<node, node> resp = make_pair(node(Q, b, dic, val, already), node(Q, b, dic, val, already));
+int node::fixed(0);
+int node::nodes(1);
+pair<node, node> node::branch() const {
+  pair<node, node> resp = make_pair(clone(), clone());
   int best0, best1;
   best0 = max_element(p0.begin(), p0.end()) - p0.begin();
   best1 = max_element(p1.begin(), p1.end()) - p1.begin();
@@ -169,5 +209,6 @@ pair<node, node> node::branch() {
     resp.first.do_fix(best1, 0);
     resp.second.do_fix(best1, 1);
   }
+	nodes += 2;
   return resp;
 }

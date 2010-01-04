@@ -9,26 +9,30 @@ using namespace arma;
 using namespace std;
 class node {
   public:
-    static int getMinNum();
-    static int getMaxNum();
-    node(mat &Q, colvec &b, vector<int>& dic, vector<int>& val, double already);
-    pair<node, node> branch();
+    int getMinNum() const;
+    int getMaxNum() const;
+    node(const mat &Q, const colvec &b);
+    pair<node, node> branch() const;
     vector<int> val;
-    int numVar();
+    int numVar() const;
     void newdiag(colvec d);
-    bool possible();
-    void fix();
-  private:
-    static int min_num;
-    static int max_num;
+    bool possible() const;
+    bool fix();
+    double already;
     static double incumbent;
+    static int fixed;
+    static int nodes;
+    void do_fix(int var, int value);
+  private:
+    node clone() const;
+    int min_num;
+    int max_num;
     vector<int> dic;
     mat Q;
     colvec b;
     vector<double> p0, p1;
-    double already;
     bool _fix();
-    void do_fix(int var, int value);
+    int n0, n1;
 };
 
 #endif
