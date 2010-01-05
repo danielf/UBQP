@@ -33,6 +33,7 @@ class node {
     vector<double> p0, p1;
     bool _fix();
     int n0, n1;
+		double lb;
 };
 
 #endif

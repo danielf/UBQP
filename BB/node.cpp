@@ -5,7 +5,7 @@
 using namespace arma;
 using namespace std;
 
-#define EPS 1.e-4
+#define EPS 1.e-1
 static void solve_chol(mat& U, colvec& b, colvec& x) {
   // First solve U^Ty = Ly = b
   colvec y;
@@ -84,6 +84,7 @@ node::node(const mat &Q, const colvec &b) : Q(Q),
     p0.push_back(-INFINITY);
     p1.push_back(-INFINITY);
   }
+	lb = 0.;
 }
 
 node node::clone() const {
@@ -101,24 +102,18 @@ node node::clone() const {
 }
 
 bool node::possible() const {
-  double sum = already;
   for (int i = 0; i < val.size(); i++) if (val[i] == -1) {
-    if (p0[i] > incumbent + EPS && p1[i] > incumbent + EPS) {
-		//	printf("Tipo 1 (p0[%d] = %lf, p1[%d] = %lf, incumbent = %lf)\n", i, p0[i], i, p1[i], incumbent);
+    if (p0[i] > incumbent - already + EPS && p1[i] > incumbent - already + EPS) {
 			return false;
 		}
-    sum -= (b[i] > 0?b[i]:0);
   }
   if (n1 > max_num) {
-	//	printf("Tipo 2\n");
 		return false;
 	}
   if (n1 + numVar() < min_num) {
-	//	printf("Tipo 3\n");
 		return false;
 	}
-  if (sum > incumbent) {
-	//	printf("Tipo 4 (sum = %lf, incumbent = %lf)\n", sum, incumbent);
+  if (already + lb > incumbent + EPS) {
 		return false;
 	}
   return true;
@@ -127,6 +122,7 @@ bool node::possible() const {
 void node::newdiag(colvec d) {
   mat Q2, U;
   colvec eigval, b2, c, QIb;
+	double new_lb;
   
   Q2 = Q + 2*diagmat(d);
   eigval = eig_sym(Q2);
@@ -136,9 +132,14 @@ void node::newdiag(colvec d) {
   b2 = b + d;
   chol(U, Q2);
   solve_chol(U, b2, QIb);
+	
+	new_lb = .5*dot(QIb, Q2*QIb) - dot(b2, QIb);
+
+	lb = min(lb, new_lb);
+
   if (incumbent < INFINITY) {
     c = ones(numVar());
-    pair<double, double> resp = optimize(U, QIb, b2, c, incumbent);
+    pair<double, double> resp = optimize(U, QIb, b2, c, incumbent - already);
     min_num = max(min_num, n1 + (int)ceil(resp.first));
     max_num = min(max_num, n1 + (int)floor(resp.second));
   }
@@ -153,6 +154,7 @@ void node::newdiag(colvec d) {
 }
 
 void node::do_fix(int var, int value) {
+	lb = 0;
   if (value == 1) {
     already -= b[var];
     b -= Q.col(var);
@@ -178,9 +180,9 @@ void node::do_fix(int var, int value) {
 bool node::_fix() {
   if (incumbent == INFINITY) return false;
   for (int i = 0; i < numVar(); i++) {
-    if (p1[i] > incumbent + EPS || p0[i] > incumbent + EPS) { // Tem que ser 0 ou 1
-      if (p1[i] > incumbent + EPS) do_fix(i, 0);
-      else if (p0[i] > incumbent + EPS) do_fix(i, 1);
+    if (p1[i] > incumbent - already + EPS || p0[i] > incumbent - already + EPS) { // Tem que ser 0 ou 1
+      if (p1[i] > incumbent - already + EPS) do_fix(i, 0);
+      else do_fix(i, 1);
       return true;
     }
   }

@@ -9,6 +9,7 @@ using namespace arma;
 using namespace std;
 
 void process(node& nod) {
+	printf("Processing with %d variables\n", nod.numVar());
 	do {
 		if (nod.numVar() == 0) {
 			node::incumbent = min(node::incumbent, nod.already);
