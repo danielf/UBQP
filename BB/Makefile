@@ -1,13 +1,18 @@
+ICCFLAGS="-O3"
+
 all: main
 
 main: main.o node.o read.o
-	g++ -o main -g main.o node.o read.o -larmadillo
+	icc -o main ${ICCFLAGS} main.o node.o read.o -larmadillo
 
 main.o: main.cpp node.h read.h
-	g++ -c -g main.cpp
+	icc -c ${ICCFLAGS} main.cpp
 
 node.o: node.cpp node.h
-	g++ -c -g node.cpp
+	icc -c ${ICCFLAGS} node.cpp
 
 read.o: read.cpp read.h node.h
-	g++ -c -g read.cpp
+	icc -c ${ICCFLAGS} read.cpp
+
+clean:
+	rm -f *.o main

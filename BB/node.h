@@ -23,6 +23,7 @@ class node {
     static int fixed;
     static int nodes;
     void do_fix(int var, int value);
+		void do_brute_force();
   private:
     node clone() const;
     int min_num;

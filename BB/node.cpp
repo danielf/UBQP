@@ -84,13 +84,13 @@ node::node(const mat &Q, const colvec &b) : Q(Q),
     p0.push_back(-INFINITY);
     p1.push_back(-INFINITY);
   }
-	lb = 0.;
+	lb = -INFINITY;
 }
 
 node node::clone() const {
   node temp(Q, b);
-  temp.p0 = p0;
-  temp.p1 = p1;
+//  temp.p0 = p0;
+//  temp.p1 = p1;
   temp.already = already;
   temp.min_num = min_num;
   temp.max_num = max_num;
@@ -119,6 +119,38 @@ bool node::possible() const {
   return true;
 }
 
+void node::do_brute_force() {
+	double best_sol = 0., curr_sol = 0.;
+	int lasti = 0;
+	vector<double> best_val(numVar(), 0);
+	vector<double> curr_val = best_val;
+	int n = numVar();
+	colvec bb = b;
+	for (int _i = 1; _i < (1 << n); _i++) {
+		int i, _changed, changed;
+		i = _i ^ (_i >> 1);
+		_changed = lasti ^ i;
+		lasti = i;
+		for (changed = -1; _changed; _changed >>= 1) changed++;
+		if (curr_val[changed] == 0) {
+			curr_sol -= bb[changed];
+			bb -= Q.col(changed);
+			curr_val[changed] = 1;
+		} else {
+			curr_sol += bb[changed];
+			bb += Q.col(changed);
+			curr_val[changed] = 0;
+		}
+		if (curr_sol < best_sol) {
+			best_sol = curr_sol;
+			best_val = curr_val;
+		}
+	}
+	for (int i = n-1; i >= 0; i--) {
+		do_fix(i, best_val[i]);
+	}
+}
+
 void node::newdiag(colvec d) {
   mat Q2, U;
   colvec eigval, b2, c, QIb;
@@ -133,9 +165,9 @@ void node::newdiag(colvec d) {
   chol(U, Q2);
   solve_chol(U, b2, QIb);
 	
-	new_lb = .5*dot(QIb, Q2*QIb) - dot(b2, QIb);
+	new_lb = -.5*dot(QIb, b2);
 
-	lb = min(lb, new_lb);
+	lb = max(lb, new_lb);
 
   if (incumbent < INFINITY) {
     c = ones(numVar());
@@ -154,9 +186,10 @@ void node::newdiag(colvec d) {
 }
 
 void node::do_fix(int var, int value) {
-	lb = 0;
+	lb = -INFINITY;
   if (value == 1) {
     already -= b[var];
+		incumbent = min(incumbent, already);
     b -= Q.col(var);
     val[dic[var]] = 1;
     n1++;
@@ -195,6 +228,8 @@ bool node::fix() {
 		ans = true;
 		fixed++;
 	}
+	fill(p0.begin(), p0.end(), -INFINITY);
+	fill(p1.begin(), p1.end(), -INFINITY);
 	return ans;
 }
 int node::fixed(0);
