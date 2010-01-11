@@ -10,6 +10,9 @@ using namespace arma;
 node read(const char* file) {
 	FILE* arq = fopen(file, "rt");
 	int n, m;
+	double K;
+	fscanf(arq, "%lf", &K);
+	node::incumbent = K;
 	fscanf(arq, "%d %d", &n, &m);
 	mat Q = zeros(n,n);
 	colvec bb = zeros(n);

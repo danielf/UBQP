@@ -24,13 +24,13 @@ class node {
     static int nodes;
     void do_fix(int var, int value);
 		void do_brute_force();
+    mat Q;
+    colvec b;
   private:
     node clone() const;
     int min_num;
     int max_num;
     vector<int> dic;
-    mat Q;
-    colvec b;
     vector<double> p0, p1;
     bool _fix();
     int n0, n1;

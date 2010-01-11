@@ -1,6 +1,7 @@
 #include "node.h"
 #include <math.h>
 #include <algorithm>
+#include <time.h>
 
 using namespace arma;
 using namespace std;
@@ -89,8 +90,8 @@ node::node(const mat &Q, const colvec &b) : Q(Q),
 
 node node::clone() const {
   node temp(Q, b);
-//  temp.p0 = p0;
-//  temp.p1 = p1;
+  temp.p0 = p0;
+  temp.p1 = p1;
   temp.already = already;
   temp.min_num = min_num;
   temp.max_num = max_num;
@@ -98,12 +99,13 @@ node node::clone() const {
   temp.n0 = n0;
   temp.n1 = n1;
   temp.dic = dic;
+	temp.lb = lb;
 	return temp;
 }
 
 bool node::possible() const {
-  for (int i = 0; i < val.size(); i++) if (val[i] == -1) {
-    if (p0[i] > incumbent - already + EPS && p1[i] > incumbent - already + EPS) {
+  for (int i = 0; i < numVar(); i++) if (val[i] == -1) {
+    if (p0[i] > incumbent + EPS && p1[i] > incumbent + EPS) {
 			return false;
 		}
   }
@@ -113,13 +115,14 @@ bool node::possible() const {
   if (n1 + numVar() < min_num) {
 		return false;
 	}
-  if (already + lb > incumbent + EPS) {
+  if (lb >= incumbent + EPS) {
 		return false;
 	}
   return true;
 }
 
 void node::do_brute_force() {
+	clock_t before = clock();
 	double best_sol = 0., curr_sol = 0.;
 	int lasti = 0;
 	vector<double> best_val(numVar(), 0);
@@ -149,6 +152,8 @@ void node::do_brute_force() {
 	for (int i = n-1; i >= 0; i--) {
 		do_fix(i, best_val[i]);
 	}
+	clock_t after = clock();
+	printf("Brute-force for %d vars in %lf secs\n", n, (1.*(after-before))/CLOCKS_PER_SEC);
 }
 
 void node::newdiag(colvec d) {
@@ -167,7 +172,7 @@ void node::newdiag(colvec d) {
 	
 	new_lb = -.5*dot(QIb, b2);
 
-	lb = max(lb, new_lb);
+	lb = max(lb, new_lb + already);
 
   if (incumbent < INFINITY) {
     c = ones(numVar());
@@ -179,14 +184,13 @@ void node::newdiag(colvec d) {
   for (int i = 0; i < numVar(); i++) {
     c[i] = 1;
     pair<double, double> resp = inv_optimize(U, QIb, b2, c);
-    p0[i] = max(p0[i], resp.first);
-    p1[i] = max(p1[i], resp.second);
+    p0[i] = max(p0[i], resp.first + already);
+    p1[i] = max(p1[i], resp.second + already);
     c[i] = 0;
   }
 }
 
 void node::do_fix(int var, int value) {
-	lb = -INFINITY;
   if (value == 1) {
     already -= b[var];
 		incumbent = min(incumbent, already);
@@ -213,8 +217,8 @@ void node::do_fix(int var, int value) {
 bool node::_fix() {
   if (incumbent == INFINITY) return false;
   for (int i = 0; i < numVar(); i++) {
-    if (p1[i] > incumbent - already + EPS || p0[i] > incumbent - already + EPS) { // Tem que ser 0 ou 1
-      if (p1[i] > incumbent - already + EPS) do_fix(i, 0);
+    if (p1[i] > incumbent + EPS || p0[i] > incumbent + EPS) { // Tem que ser 0 ou 1
+      if (p1[i] > incumbent + EPS) do_fix(i, 0);
       else do_fix(i, 1);
       return true;
     }
@@ -228,8 +232,6 @@ bool node::fix() {
 		ans = true;
 		fixed++;
 	}
-	fill(p0.begin(), p0.end(), -INFINITY);
-	fill(p1.begin(), p1.end(), -INFINITY);
 	return ans;
 }
 int node::fixed(0);
